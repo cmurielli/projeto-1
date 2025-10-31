@@ -7,4 +7,4 @@ def test_saudacao():
 
 def test_saudacao_vazia():
     resultado = saudacao('')
-    assert 'Olá !' in resultado
+    assert 'Olá, !' in resultado
