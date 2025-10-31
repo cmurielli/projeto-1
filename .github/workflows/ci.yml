@@ -1,28 +1,87 @@
+# Nome do workflow que aparece na aba Actions do GitHub
 name: CI Pipeline DevSecOps
 
+# Define QUANDO o pipeline vai executar
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  # Quando alguém fizer push na branch main
   pull_request:
-    branches: [ main ]
+    branches: [ main ]  # Quando alguém abrir PR para a main
 
+# Lista de trabalhos (jobs) que o pipeline vai executar
 jobs:
+  
+  # ========================================
+  # JOB 1: TESTES AUTOMATIZADOS
+  # ========================================
   test:
+    # Define o sistema operacional da máquina virtual
+    runs-on: ubuntu-latest
+    
+    # Lista de passos que serão executados NA ORDEM
+    steps:
+    
+    # PASSO 1: Baixar o código do repositório para a VM
+    - name: Checkout do código
+      uses: actions/checkout@v3  # Action pronta que clona o repo
+    
+    # PASSO 2: Instalar Python na máquina virtual
+    - name: Configurar Python
+      uses: actions/setup-python@v4  # Action pronta para instalar Python
+      with:
+        python-version: '3.13'  # Versão específica do Python
+    
+    # PASSO 3: Instalar as bibliotecas necessárias
+    - name: Instalar dependências
+      run: |  # O pipe | permite múltiplas linhas de comando
+        pip install pytest  # Instala o framework de testes
+    
+    # PASSO 4: Executar os testes
+    - name: Rodar testes
+      run: |
+        pytest test_app.py -v  # -v = verbose (mostra mais detalhes)
+        # Se algum teste falhar, o pipeline para aqui e fica vermelho ❌
+
+  # ========================================
+  # JOB 2: VERIFICAÇÃO DE SEGURANÇA
+  # Roda EM PARALELO com o job de testes
+  # ========================================
+  security:
+    # Nova máquina virtual, independente do job "test"
     runs-on: ubuntu-latest
     
     steps:
+    
+    # PASSO 1: Baixar o código (precisa fazer de novo, é outra VM!)
     - name: Checkout do código
       uses: actions/checkout@v3
     
+    # PASSO 2: Instalar Python (de novo, máquina diferente)
     - name: Configurar Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.13'
     
-    - name: Instalar dependências
+    # PASSO 3: Instalar ferramenta de análise de segurança
+    - name: Instalar Bandit (scanner de segurança)
       run: |
-        pip install pytest
+        pip install bandit  # Bandit detecta vulnerabilidades em Python
     
-    - name: Rodar testes
+    # PASSO 4: Rodar análise e salvar relatório em arquivo
+    - name: Verificar vulnerabilidades
       run: |
-        pytest test_app.py -v
+        # -r . = analisa recursivamente todos os arquivos da pasta atual
+        # -f json = formato de saída JSON
+        # -o arquivo.json = salva resultado em arquivo
+        # || true = não falha o pipeline mesmo se encontrar problemas
+        bandit -r . -f json -o bandit-report.json || true
+    
+    # PASSO 5: Mostrar resultados diretamente no log do GitHub
+    - name: Mostrar resultados
+      run: |
+        bandit -r . || true  # Exibe no terminal para ver na interface
+        # Exemplos do que Bandit detecta:
+        # - Senhas no código
+        # - Uso de funções inseguras (exec, eval)
+        # - SQL injection vulnerável
+        # - Criptografia fraca
